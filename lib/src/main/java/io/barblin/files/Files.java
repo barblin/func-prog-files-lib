@@ -3,10 +3,10 @@ package io.barblin.files;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Files {
 
@@ -14,19 +14,58 @@ public class Files {
 
     }
 
-    public static Function<String, Function<Charset, Optional<List<String>>>> toLines = fileName -> charset -> {
-        try (final InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(fileName)) {
-            if (Objects.isNull(is)) {
-                return Optional.empty();
-            }
+    public record WriteOptions(String path, Charset charset, boolean append, boolean autoFlush) {
+    }
 
-            final Reader r = new InputStreamReader(is, charset);
-            final BufferedReader br = new BufferedReader(r);
+    public static final Function<String, Function<Charset, Optional<List<String>>>> resourceFileToLines = fileName -> charset -> {
+        try (final var is = Thread.currentThread().getContextClassLoader().getResourceAsStream(fileName);
+             final var reader = new InputStreamReader(is, charset);
+             final var bufferedReader = new BufferedReader(reader)) {
 
-            return Optional.of(br.lines().collect(Collectors.toList()));
+            return Optional.of(bufferedReader.lines().collect(Collectors.toList()));
+
+        } catch (NullPointerException | IOException ex) {
+            return Optional.empty();
+        }
+    };
+
+    public static final Function<File, Function<Charset, Optional<List<String>>>> toLines = file -> charset -> {
+        try (final var is = new FileInputStream(file);
+             final var reader = new InputStreamReader(is, charset);
+             final var bufferedReader = new BufferedReader(reader)) {
+
+            return Optional.of(bufferedReader.lines().collect(Collectors.toList()));
 
         } catch (IOException ex) {
             return Optional.empty();
         }
     };
+
+    public static final Function<Stream<String>, Function<WriteOptions, Optional<File>>> linesToFile =
+            stream -> options -> {
+                File file = new File(options.path);
+
+                try (FileOutputStream fos = new FileOutputStream(file, options.append);
+                     OutputStreamWriter osw = new OutputStreamWriter(fos, options.charset);
+                     BufferedWriter bw = new BufferedWriter(osw);
+                     PrintWriter pw = new PrintWriter(bw, options.autoFlush)) {
+
+                    file.createNewFile();
+
+                    if (!file.exists()) {
+                        return Optional.empty();
+                    }
+
+                    if (!file.getParentFile().exists()) {
+                        file.getParentFile().mkdirs();
+                    }
+
+                    stream.forEach(pw::println);
+
+                    return Optional.of(file);
+
+                } catch (IOException e) {
+                    return Optional.empty();
+                }
+            };
 }
