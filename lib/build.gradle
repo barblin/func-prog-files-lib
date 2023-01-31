@@ -59,7 +59,7 @@ publishing {
 
             groupId = "io.github.${property('devOrg')}"
             artifactId = 'functional-files'
-            version = "0.0.2"
+            version = "0.0.3"
             from components.java
 
             artifact(sourcesJar) {
