@@ -58,7 +58,7 @@ publishing {
             }
 
             groupId = "io.github.${property('devOrg')}"
-            artifactId = 'functional.files'
+            artifactId = 'functional-files'
             version = "0.0.1"
             from components.java
 
